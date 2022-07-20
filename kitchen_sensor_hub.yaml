@@ -2,7 +2,7 @@
 #=== Substitutions
 #==================
 substitutions:
-  device_name: kitchen-sensor
+  device_name: kitchen-sensor-hub
   friendly_name: Multi-Sensore Cucina
   update_time: 900s
 
@@ -11,7 +11,7 @@ esphome:
   platform: ESP32
   board: wemos_d1_mini32
   project:
-    name: "Bigmoby.kitchen-sensor"
+    name: "Bigmoby.kitchen-sensor-hub"
     version: "0.1.0"
 
 # Enable logging
@@ -47,13 +47,17 @@ esp32_ble_tracker:
 
 i2c:
   - id: bus_a
-    sda: D2
-    scl: D1
+    sda: 21
+    scl: 22
     scan: true
 
 time:
   - platform: homeassistant
     id: esptime
+
+#   - platform: sntp
+#     id: sntptime
+#     timezone: "Europe/Rome"
 
 # Some fonts & images to display
 font:
@@ -75,7 +79,7 @@ font:
 
   - file: "high_sans_serif_7.ttf"
     id: font40_serif
-    size: 40    
+    size: 40   
 
   - file: "high_sans_serif_7.ttf"
     id: font68_serif
@@ -115,7 +119,7 @@ display:
 
 binary_sensor:
   - platform: gpio
-    pin: D7
+    pin: 23
     name: ${friendly_name} Motion Sensor
     icon: "mdi:motion-sensor"
 
@@ -175,15 +179,15 @@ sensor:
   - platform: xiaomi_hhccjcy01
     mac_address: !secret miflora_mac_address
     temperature:
-      name: "Pianta 1 Temperatura"
+      name: "Bonsai Ficus temperatura"
     moisture:
-      name: "Pianta 1 Umidità"
+      name: "Bonsai Ficus umidità"
     illuminance:
-      name: "Pianta 1 Luminanza"
+      name: "Bonsai Ficus luminanza"
     conductivity:
-      name: "Pianta 1 Fertilità terreno"
+      name: "Bonsai Ficus fertilità terreno"
     battery_level:
-      name: "Pianta 1 Livello batteria"
+      name: "Bonsai Ficus livello batteria"
 
   - platform: bme280
     i2c_id: bus_a
