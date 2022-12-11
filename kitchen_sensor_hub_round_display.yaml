@@ -1,3 +1,7 @@
+external_components:
+  - source: github://4cello/esphome@gc9a01
+    components: ["gc9a01"]
+
 #==================
 #=== Substitutions
 #==================
@@ -9,10 +13,10 @@ substitutions:
 esphome:
   name: ${device_name}
   platform: ESP32
-  board: wemos_d1_mini32
+  board: nodemcu-32s
   project:
     name: "Bigmoby.kitchen-sensor-hub"
-    version: "2.0.0"
+    version: "2.1.0"
 
 # Enable logging
 logger:
@@ -93,9 +97,11 @@ font:
 
 # OLED SSD1306 configuration
 display:
-  - platform: ssd1306_i2c
-    model: "SSD1306 128x64"
-    address: 0x3C
+  - platform: gc9a01
+    reset_pin: GPIO26
+    cs_pin: GPIO15
+    dc_pin: GPIO33
+    rotation: 90
     lambda: |-
       it.strftime(44, -8, id(font40_serif), "%d %b %Y", id(esptime).now());
 
