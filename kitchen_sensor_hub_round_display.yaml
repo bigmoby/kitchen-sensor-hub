@@ -61,6 +61,10 @@ i2c:
     scl: 22
     scan: true
 
+spi:
+  mosi_pin: GPIO13
+  clk_pin: GPIO14
+
 time:
   - platform: homeassistant
     id: esptime
