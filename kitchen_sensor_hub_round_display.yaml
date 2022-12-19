@@ -113,13 +113,13 @@ uart:
 
 # "<TX_MSG,1671289668,66.9,15.4,991.45>"
 interval:
-  - interval: 30s
+  - interval: 5s
     then:
     - uart.write: !lambda  
-                        char buf[40];
+                        char buf[42];
                         char str[17];
                         long currTime = id(sntp_time).now().timestamp;
                 
-                        sprintf(buf, "<TX_MSG,%lu,%.1f,%.1f,%.2f>\n", currTime, id(bme280_humidity).state, id(bme280_temperature).state, id(bme280_pressure).state);
+                        sprintf(buf, "<TX_MSG,0,%lu,%.1f,%.1f,%.2f>\n", currTime, id(bme280_humidity).state, id(bme280_temperature).state, id(bme280_pressure).state);
                         std::string s = buf;
                         return std::vector<unsigned char>( s.begin(), s.end() );
