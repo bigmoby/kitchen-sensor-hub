@@ -1,14 +1,9 @@
-external_components:
-  - source: github://bigmoby/esphome@gc9a01
-    components: ["gc9a01"]
-
 #==================
 #=== Substitutions
 #==================
 substitutions:
-  device_name: kitchen-sensor-hub
+  device_name: new-kitchen-sensor-hub
   friendly_name: Multi-Sensore Cucina
-  update_time: 900s
 
 esp32:
   board: nodemcu-32s
@@ -17,10 +12,8 @@ esp32:
 
 esphome:
   name: ${device_name}
-#  includes:
-#  - fonts.h
   project:
-    name: "Bigmoby.kitchen-sensor-hub"
+    name: "Bigmoby.${device_name}"
     version: "2.1.0"
 
 # Enable logging
@@ -35,9 +28,6 @@ mqtt:
   username: !secret mqtt_user
   password: !secret mqtt_password
   client_id: ${device_name}
-
-ota:
-  password: !secret ota_password
 
 i2c:
   - id: bus_a
