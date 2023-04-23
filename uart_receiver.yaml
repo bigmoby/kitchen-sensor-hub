@@ -12,17 +12,24 @@ substitutions:
 
 esp32:
   board: lolin_s2_mini
+  variant: esp32s2
   framework:
-    type: arduino
+    type: esp-idf
+    sdkconfig_options:
+      CONFIG_ESP_CONSOLE_USB_CDC: y
 
 esphome:
   name: ${device_name}
   project:
     name: "Bigmoby.${device_name}"
     version: "2.1.0"
+  includes:
+    - uart_read_line_sensor.h
 
 # Enable logging
 logger:
+  hardware_uart: USB_CDC
+  level: DEBUG
 
 wifi:
   ssid: !secret wifi_ssid
@@ -42,8 +49,8 @@ time:
     timezone: Europe/Rome  
 
 spi:
-  mosi_pin: GPIO13 # SDA
-  clk_pin: GPIO14  # SCL
+  mosi_pin: GPIO35 # SDA
+  clk_pin: GPIO36  # SCL
 
 uart:
   id: uart_bus
@@ -58,16 +65,29 @@ uart:
     sequence:
       - lambda: UARTDebug::log_string(direction, bytes);  
 
+text_sensor:
+- platform: custom
+  lambda: |-
+    auto my_custom_sensor = new UartReadLineSensor(id(uart_bus));
+    App.register_component(my_custom_sensor);
+    return {my_custom_sensor};
+  text_sensors:
+    id: "uart_readline"
+
 display:
-- platform: gc9a01
-  reset_pin: GPIO18
-  cs_pin: GPIO16
-  dc_pin: GPIO33
-  rotation: 180
-  lambda: |-  
+  - platform: gc9a01
+    reset_pin: GPIO18
+    cs_pin: GPIO10
+    dc_pin: GPIO33
+    rotation: 0
+    lambda: |-  
+      ESP_LOGD("gc9a01", "Write to display start");
+      it.line(0, 0, 100, 50);
       it.strftime(80, 10, id(font40_serif), "%d %b %Y", id(sntp_time).now());
       // Print time in HH:MM format
       it.strftime(90, 63, id(font68_serif),  "%H:%M", id(sntp_time).now());
+      it.print(0, 10, id(font40_serif), "Hello World!");
+      ESP_LOGD("gc9a01", "Write to display end");
 
 font:
   - file: "Roboto-Light.ttf"
