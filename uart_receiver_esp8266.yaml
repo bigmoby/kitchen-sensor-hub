@@ -8,15 +8,12 @@ external_components:
 substitutions:
   device_name: kitchen-sensor-hub-receiver
   friendly_name: Multi-Sensore Receiver Cucina
-  update_time: 900s
 
-esp32:
-  board: lolin_s2_mini
-  variant: esp32s2
+esp8266:
+  board: nodemcuv2
   framework:
-    type: esp-idf
-    sdkconfig_options:
-      CONFIG_ESP_CONSOLE_USB_CDC: y
+    version: recommended
+  restore_from_flash: true
 
 esphome:
   name: ${device_name}
@@ -26,7 +23,6 @@ esphome:
 
 # Enable logging
 logger:
-  hardware_uart: USB_CDC
   level: DEBUG
 
 wifi:
@@ -46,37 +42,21 @@ time:
     id: sntp_time
     timezone: Europe/Rome  
 
-uart:
-  - id: uart_bus
-    tx_pin: 1
-    rx_pin: 3
-    baud_rate: 9600
-    debug:
-      direction: RX
-      dummy_receiver: false
-      after:
-        delimiter: "\n"
-      sequence:
-        - lambda: UARTDebug::log_string(direction, bytes);  
-
 spi:
-  - id: bus_a
-    clk_pin: GPIO36
-    mosi_pin: GPIO35
+  mosi_pin: GPIO13 # SDA
+  clk_pin: GPIO14  # SCL
+
+
 
 display:
   - platform: gc9a01
-    spi_id: bus_a
-    reset_pin: GPIO18
+    reset_pin: GPIO05
     cs_pin: GPIO10
-    dc_pin: GPIO33
+    dc_pin: GPIO15
     rotation: 0
     lambda: |-  
       ESP_LOGD("gc9a01", "Write to display start");
-      it.strftime(80, 10, id(font40_serif), "%d %b %Y", id(sntp_time).now());
-      // Print time in HH:MM format
-      it.strftime(90, 63, id(font68_serif),  "%H:%M", id(sntp_time).now());
-      it.print(40, 40, id(font40_serif), "Hello World!");
+      it.line(0, 0, 50, 50);
       ESP_LOGD("gc9a01", "Write to display end");
 
 font:
@@ -103,4 +83,4 @@ font:
     glyphs:
       - "\U000F050F" # mdi-thermometer
       - "\U000F058E" # mdi-water-percent
-      - "\U000F029A" # mdi-gauge   
+      - "\U000F029A" # mdi-gauge   s

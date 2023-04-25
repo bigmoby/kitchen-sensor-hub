@@ -9,8 +9,11 @@
 #include <Fonts/FreeSans12pt7b.h>
 #include <Fonts/FreeSans24pt7b.h>
 
-#define DEV_CS_PIN  10
-#define DEV_DC_PIN  7
+#define TFT_DC D8
+#define TFT_CS 10
+#define TFT_MOSI 13
+#define TFT_CLK 14
+#define TFT_RESET 5
 
 #define LILLA 0xFC0E
 #define SEAGREEN 0x2C4A
@@ -18,7 +21,7 @@
 #define PURPLE 0x4810
 
 // Hardware SPI on Feather or other boards
-Adafruit_GC9A01A tft(DEV_CS_PIN, DEV_DC_PIN);
+Adafruit_GC9A01A tft(TFT_CS, TFT_DC, TFT_MOSI, TFT_CLK, TFT_RESET);
 GFXcanvas1 canvas_time(150, 36);
 GFXcanvas1 canvas_date(130, 18);
 
@@ -51,9 +54,30 @@ void setup() {
   canvas_time.setTextWrap(false);
   canvas_date.setTextWrap(false);
   Serial.print(char(169));
-  Serial.println("Bigmoby");
-  Serial.println("Enter data in this style <TX_MSG,0,1671289668,66.9,15.4,991.45>");
+  Serial.println("Created by Bigmoby");
+  Serial.println("Enter data in this format <TX_MSG,0,1671289668,66.9,15.4,991.45>");
   Serial.println();
+
+  Serial.println(F("Benchmark                Time (microseconds)"));
+  delay(10);
+  Serial.print(F("Screen fill              "));
+  Serial.println(testFillScreen());
+  delay(500);
+}
+
+unsigned long testFillScreen() {
+  unsigned long start = micros();
+  tft.fillScreen(GC9A01A_BLACK);
+  yield();
+  tft.fillScreen(GC9A01A_RED);
+  yield();
+  tft.fillScreen(GC9A01A_GREEN);
+  yield();
+  tft.fillScreen(GC9A01A_BLUE);
+  yield();
+  tft.fillScreen(GC9A01A_BLACK);
+  yield();
+  return micros() - start;
 }
 
 //============
@@ -140,9 +164,9 @@ void parseData() {      // split the data into its parts
 
 unsigned long printDisplay() {
   unsigned long start = micros();
-  
+
   tft.fillScreen(GC9A01A_BLACK);
-  
+
   if (allarme == 1)
   {
     tft.setFont();
