@@ -10,10 +10,10 @@
 #include <Fonts/FreeSans24pt7b.h>
 
 #define TFT_DC D8
-#define TFT_CS 10
-#define TFT_MOSI 13
-#define TFT_CLK 14
-#define TFT_RESET 5
+#define TFT_CS D2
+#define TFT_MOSI D7
+#define TFT_CLK D5
+#define TFT_RESET D1
 
 #define LILLA 0xFC0E
 #define SEAGREEN 0x2C4A
@@ -59,7 +59,7 @@ void setup() {
   Serial.println();
 
   Serial.println(F("Benchmark                Time (microseconds)"));
-  delay(10);
+  delay(2);
   Serial.print(F("Screen fill              "));
   Serial.println(testFillScreen());
   delay(500);

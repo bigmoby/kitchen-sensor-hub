@@ -43,16 +43,16 @@ time:
     timezone: Europe/Rome  
 
 spi:
-  mosi_pin: GPIO13 # SDA
-  clk_pin: GPIO14  # SCL
+  mosi_pin: D7 # SDA
+  clk_pin: D5  # SCL
 
 
 
 display:
   - platform: gc9a01
-    reset_pin: GPIO05
-    cs_pin: GPIO10
-    dc_pin: GPIO15
+    reset_pin: D1
+    cs_pin: D2
+    dc_pin: D8
     rotation: 0
     lambda: |-  
       ESP_LOGD("gc9a01", "Write to display start");
