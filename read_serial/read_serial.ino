@@ -1,5 +1,11 @@
 // Receive with start- and end-markers combined with parsing
 // It assumes you send something like "<TX_MSG,0,1671289668,66.9,15.4,991.45>\n"
+// ordered as TX_MSG = msg type
+// 0 = alarm status,
+// 1671289668 current timestamp,
+// 66.9 = humidity,
+// 15.4 = temperature
+// 991.45 = pressure
 #include <TimeLib.h>    // https://github.com/PaulStoffregen/Time
 #include <Timezone.h>   // https://github.com/JChristensen/Timezone
 #include "SPI.h"
@@ -34,7 +40,7 @@ char messageFromPC[numChars] = {0};
 unsigned long time_stamp = 1;
 char formatted_date[10] = {0};
 char formatted_time[8] = {0};
-float allarme = -1.0;
+unsigned short allarme = 0;
 float humidity = -1.0;
 float temperature = -273.0;
 float pressure = -1.0;
@@ -58,26 +64,16 @@ void setup() {
   Serial.println("Enter data in this format <TX_MSG,0,1671289668,66.9,15.4,991.45>");
   Serial.println();
 
-  Serial.println(F("Benchmark                Time (microseconds)"));
   delay(2);
-  Serial.print(F("Screen fill              "));
-  Serial.println(testFillScreen());
+  Serial.print(F("Screen fill"));
   delay(500);
 }
 
-unsigned long testFillScreen() {
-  unsigned long start = micros();
+void testFillScreen() {
   tft.fillScreen(GC9A01A_BLACK);
   yield();
   tft.fillScreen(GC9A01A_RED);
   yield();
-  tft.fillScreen(GC9A01A_GREEN);
-  yield();
-  tft.fillScreen(GC9A01A_BLUE);
-  yield();
-  tft.fillScreen(GC9A01A_BLACK);
-  yield();
-  return micros() - start;
 }
 
 //============
@@ -88,8 +84,12 @@ void loop() {
     strcpy(tempChars, receivedChars);
     // this temporary copy is necessary to protect the original data
     //   because strtok() used in parseData() replaces the commas with \0
+
+    Serial.println(F("Received data from serial: "));
+    Serial.println(tempChars);
+
     parseData();
-    //showParsedData();
+    showParsedData();
     printDisplay();
     newData = false;
   }
@@ -110,6 +110,7 @@ void recvWithStartEndMarkers() {
     if (recvInProgress == true) {
       if (rc != endMarker) {
         receivedChars[ndx] = rc;
+
         ndx++;
         if (ndx >= numChars) {
           ndx = numChars - 1;
@@ -138,10 +139,8 @@ void parseData() {      // split the data into its parts
   strtokIndx = strtok(tempChars, ",");     // get the first part - the string
   strcpy(messageFromPC, strtokIndx); // copy it to messageFromPC
 
-
   strtokIndx = strtok(NULL, ","); // this continues where the previous call left off
-  allarme = atof(strtokIndx);
-
+  allarme = atoi(strtokIndx);
 
   strtokIndx = strtok(NULL, ","); // this continues where the previous call left off
   time_stamp = atol(strtokIndx);
@@ -150,28 +149,40 @@ void parseData() {      // split the data into its parts
   sprintf(formatted_date, "%02d.%02d.%02d", day(localTime), month(localTime), year(localTime));
   sprintf(formatted_time, "%02d:%02d", hour(localTime), minute(localTime), second(localTime));
 
+  Serial.println(F("formatted_date"));
+  Serial.println(formatted_date);
+
+  Serial.println(F("formatted_time"));
+  Serial.println(formatted_time);
+
   strtokIndx = strtok(NULL, ","); // this continues where the previous call left off
   humidity = atof(strtokIndx);
 
+  Serial.println(F("humidity"));
+  Serial.println(humidity);
 
   strtokIndx = strtok(NULL, ",");
   temperature = atof(strtokIndx);
 
+  Serial.println(F("temperature"));
+  Serial.println(temperature);
 
   strtokIndx = strtok(NULL, ",");
   pressure = atof(strtokIndx);
+
+  Serial.println(F("pressure"));
+  Serial.println(pressure);
 }
 
 unsigned long printDisplay() {
   unsigned long start = micros();
 
-  tft.fillScreen(GC9A01A_BLACK);
+  //tft.fillScreen(GC9A01A_BLACK);
 
   if (allarme == 1)
   {
-    tft.setFont();
-    tft.setTextSize(1);
-    tft.setFont(&FreeSans12pt7b);
+    // tft.setTextSize(1);
+    //tft.setFont(&FreeSans12pt7b);
     //tft.fillScreen(PURPLE);
     tft.setCursor(65, 190);
     tft.setTextColor(SEASHELL);
@@ -187,21 +198,32 @@ unsigned long printDisplay() {
 
   if (true)
   {
-    tft.setFont(&FreeSans12pt7b);
+    //tft.setFont(&FreeSans12pt7b);
     tft.setCursor(60, 30);
     tft.setTextColor(LILLA);
     tft.println(formatted_date);
 
+    Serial.println(F("Clear canvas (not display) prima"));
+
     canvas_time.fillScreen(GC9A01A_BLACK);    // Clear canvas (not display)
+
+    Serial.println(F("Clear canvas (not display) dopo"));
+
     canvas_time.setCursor(0, 0);
-    canvas_time.setTextSize(5);
+    //canvas_time.setTextSize(5);
     canvas_time.print(formatted_time);
-    tft.drawBitmap(45, 60, canvas_time.getBuffer(), canvas_time.width(), canvas_time.height(), LILLA, GC9A01A_BLACK);
+
+    Serial.println(F("(canvas_time.height())"));
+    Serial.println(canvas_time.height());
+
+    //drawBitmap(short, short, unsigned char*, short, short, unsigned short, unsigned short)
+   // tft.drawBitmap(45, 60, canvas_time.getBuffer(), canvas_time.width(), canvas_time.height(), LILLA, GC9A01A_BLACK);
+
+    Serial.println(F("(tft.drawBitmap) dopo"));
   }
 
-  tft.setFont();
-  tft.setTextSize(1);
-  tft.setFont(&FreeSans12pt7b);
+  //tft.setTextSize(1);
+  //tft.setFont(&FreeSans12pt7b);
   tft.setCursor(80, 120);
   tft.setTextColor(LILLA);
   tft.print(temperature); tft.print(" °C");

@@ -18,6 +18,8 @@ esphome:
 
 # Enable logging
 logger:
+  level: VERBOSE #makes uart stream available in esphome logstream
+  # baud_rate: 0 #disable logging over uart
 
 wifi:
   ssid: !secret wifi_ssid
@@ -50,6 +52,10 @@ time:
   - platform: sntp
     id: sntp_time
     timezone: Europe/Rome
+
+esp32_ble_tracker:
+  scan_parameters:
+    active: false
 
 sensor: 
   - platform: bme280
@@ -92,6 +98,19 @@ sensor:
     unit_of_measurement: °C
     icon: "mdi:thermometer-alert"
 
+  - platform: xiaomi_hhccjcy01
+    mac_address: !secret miflora_mac_address
+    temperature:
+      name: "Bonsai Ficus temperatura"
+    moisture:
+      name: "Bonsai Ficus umidità"
+    illuminance:
+      name: "Bonsai Ficus luminanza"
+    conductivity:
+      name: "Bonsai Ficus fertilità terreno"
+    battery_level:
+      name: "Bonsai Ficus livello batteria"
+
 uart:
   id: uart_bus
   tx_pin: 17
@@ -113,7 +132,10 @@ interval:
                         char buf[42];
                         char str[17];
                         long currTime = id(sntp_time).now().timestamp;
-                
-                        sprintf(buf, "<TX_MSG,0,%lu,%.1f,%.1f,%.2f>\n", currTime, id(bme280_humidity).state, id(bme280_temperature).state, id(bme280_pressure).state);
+                        sprintf(buf, "<TX_MSG,0,%lu,%.1f,%.1f,%.2f>\r\n", currTime, id(bme280_humidity).state, id(bme280_temperature).state, id(bme280_pressure).state);
                         std::string s = buf;
                         return std::vector<unsigned char>( s.begin(), s.end() );
+
+button:
+  - platform: restart
+    name: Restart ${device_name}
