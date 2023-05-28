@@ -18,7 +18,7 @@ esphome:
 
 # Enable logging
 logger:
-  level: VERBOSE #makes uart stream available in esphome logstream
+  level: DEBUG #makes uart stream available in esphome logstream
   # baud_rate: 0 #disable logging over uart
 
 wifi:
@@ -33,8 +33,8 @@ mqtt:
 
 i2c:
   - id: bus_a
-    sda: 21
-    scl: 22
+    sda: 18
+    scl: 19
     scan: true
 
 # Enable Home Assistant API

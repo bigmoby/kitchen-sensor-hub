@@ -15,11 +15,11 @@
 #include <Fonts/FreeSans12pt7b.h>
 #include <Fonts/FreeSans24pt7b.h>
 
-#define TFT_DC D8
-#define TFT_CS D2
-#define TFT_MOSI D7
-#define TFT_CLK D5
-#define TFT_RESET D1
+#define TFT_DC 7
+#define TFT_CS 10
+#define TFT_MOSI 11
+#define TFT_CLK 9
+#define TFT_RESET 8
 
 #define LILLA 0xFC0E
 #define SEAGREEN 0x2C4A
@@ -45,7 +45,7 @@ float humidity = -1.0;
 float temperature = -273.0;
 float pressure = -1.0;
 
-boolean newData = false;
+boolean newData = true;
 
 TimeChangeRule CEST = {"CEST", Last, Sun, Mar, 2, 120}; // Central European Summer Time
 TimeChangeRule CET = {"CET ", Last, Sun, Oct, 3, 60};   // Central European Standard Time
@@ -81,6 +81,7 @@ void testFillScreen() {
 void loop() {
   recvWithStartEndMarkers();
   if (newData == true) {
+    Serial.print(F("New data arrived"));
     strcpy(tempChars, receivedChars);
     // this temporary copy is necessary to protect the original data
     //   because strtok() used in parseData() replaces the commas with \0
@@ -105,6 +106,9 @@ void recvWithStartEndMarkers() {
   char rc;
 
   while (Serial.available() > 0 && newData == false) {
+
+    Serial.println(F("Receiving from serial"));
+
     rc = Serial.read();
 
     if (recvInProgress == true) {
