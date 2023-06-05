@@ -1,261 +1,206 @@
-// Receive with start- and end-markers combined with parsing
-// It assumes you send something like "<TX_MSG,0,1671289668,66.9,15.4,991.45>\n"
-// ordered as TX_MSG = msg type
-// 0 = alarm status,
-// 1671289668 current timestamp,
-// 66.9 = humidity,
-// 15.4 = temperature
-// 991.45 = pressure
-#include <TimeLib.h>    // https://github.com/PaulStoffregen/Time
-#include <Timezone.h>   // https://github.com/JChristensen/Timezone
-#include "SPI.h"
-#include "Adafruit_GFX.h"
-#include "Adafruit_GC9A01A.h"
-#include <Fonts/FreeSans9pt7b.h>
-#include <Fonts/FreeSans12pt7b.h>
-#include <Fonts/FreeSans24pt7b.h>
+#include <TimeLib.h>
+#include <TFT_eSPI.h>  // Include the graphics library (this includes the sprite functions)
+#include "NotoSansBold36.h"
 
-#define TFT_DC 7
-#define TFT_CS 10
-#define TFT_MOSI 11
-#define TFT_CLK 9
-#define TFT_RESET 8
+TFT_eSPI tft = TFT_eSPI();  // Create object "tft"
 
-#define LILLA 0xFC0E
-#define SEAGREEN 0x2C4A
-#define SEASHELL 0xFFBD
-#define PURPLE 0x4810
+TFT_eSprite orario = TFT_eSprite(&tft);  // Create Sprite object "img" with pointer to "tft" object
+                                         // the pointer is used by pushSprite() to push it onto the TFT
 
-// Hardware SPI on Feather or other boards
-Adafruit_GC9A01A tft(TFT_CS, TFT_DC, TFT_MOSI, TFT_CLK, TFT_RESET);
-GFXcanvas1 canvas_time(150, 36);
-GFXcanvas1 canvas_date(130, 18);
-
-const byte numChars = 40;
-char receivedChars[numChars];
-char tempChars[numChars];        // temporary array for use when parsing
-
-// variables to hold the parsed data
-char messageFromPC[numChars] = {0};
-unsigned long time_stamp = 1;
-char formatted_date[10] = {0};
-char formatted_time[8] = {0};
-unsigned short allarme = 0;
-float humidity = -1.0;
-float temperature = -273.0;
-float pressure = -1.0;
+#define BITS_PER_PIXEL 16  // How many bits per pixel in Sprite
 
 boolean newData = true;
 
-TimeChangeRule CEST = {"CEST", Last, Sun, Mar, 2, 120}; // Central European Summer Time
-TimeChangeRule CET = {"CET ", Last, Sun, Oct, 3, 60};   // Central European Standard Time
-Timezone myTZ(CEST, CET);
+// Definizione delle variabili per il parsing
+char message[50];
+int alarm;
+long timestamp;
+float humidity;
+float temperature;
+float pressure;
 
-//============
+// Dimensione del buffer di input seriale
+const int bufferSize = 100;
 
-void setup() {
+// Buffer per la lettura seriale
+char buffer[bufferSize];
+int bufferIndex = 0;
+
+// Funzione per il parsing della stringa
+void parseString(const char* input) {
+  // Ignora il primo carattere "<"
+  input++;
+
+  // Copia la stringa di input nel buffer
+  strcpy(buffer, input);
+  bufferIndex = 0;
+
+  // Effettua il parsing dei valori
+  char* token = strtok(buffer, ",");
+  if (token != NULL) {
+    strcpy(message, token);
+    token = strtok(NULL, ",");
+  }
+  if (token != NULL) {
+    alarm = atoi(token);
+    token = strtok(NULL, ",");
+  }
+  if (token != NULL) {
+    timestamp = atol(token);
+    token = strtok(NULL, ",");
+  }
+  if (token != NULL) {
+    humidity = atof(token);
+    token = strtok(NULL, ",");
+  }
+  if (token != NULL) {
+    temperature = atof(token);
+    token = strtok(NULL, ",");
+  }
+  if (token != NULL) {
+    pressure = atof(token);
+    token = strtok(NULL, ",");
+  }
+}
+
+// =========================================================================
+void setup(void) {
   Serial.begin(9600);
-  tft.begin();
-  tft.fillScreen(GC9A01A_BLACK);
-  canvas_time.setTextWrap(false);
-  canvas_date.setTextWrap(false);
-  Serial.print(char(169));
+
   Serial.println("Created by Bigmoby");
   Serial.println("Enter data in this format <TX_MSG,0,1671289668,66.9,15.4,991.45>");
   Serial.println();
 
-  delay(2);
-  Serial.print(F("Screen fill"));
-  delay(500);
+  tft.init();
+  tft.setRotation(1);
+  tft.fillScreen(TFT_NAVY);
 }
-
-void testFillScreen() {
-  tft.fillScreen(GC9A01A_BLACK);
-  yield();
-  tft.fillScreen(GC9A01A_RED);
-  yield();
-}
-
-//============
-
+// =========================================================================
 void loop() {
-  recvWithStartEndMarkers();
-  if (newData == true) {
-    Serial.print(F("New data arrived"));
-    strcpy(tempChars, receivedChars);
-    // this temporary copy is necessary to protect the original data
-    //   because strtok() used in parseData() replaces the commas with \0
 
-    Serial.println(F("Received data from serial: "));
-    Serial.println(tempChars);
+  if (Serial.available()) {
+    // Leggi la stringa dalla seriale
+    char c = Serial.read();
 
-    parseData();
-    showParsedData();
-    printDisplay();
-    newData = false;
-  }
-}
+    // Se il carattere è '>', effettua il parsing della stringa
+    if (c == '>') {
+      buffer[bufferIndex] = '\0';  // Termina il buffer con il carattere nullo
+      parseString(buffer);
 
-//============
+      // Stampa i valori ottenuti dal parsing
+      Serial.print("message: ");
+      Serial.println(message);
+      Serial.print("alarm: ");
+      Serial.println(alarm);
 
-void recvWithStartEndMarkers() {
-  static boolean recvInProgress = false;
-  static byte ndx = 0;
-  char startMarker = '<';
-  char endMarker = '>';
-  char rc;
+      // Converte il timestamp in una data leggibile
+      tmElements_t time;
+      breakTime(timestamp, time);
+      char timestampString[20];
+      sprintf(timestampString, "%04d-%02d-%02d %02d:%02d:%02d",
+              time.Year + 1970, time.Month, time.Day,
+              time.Hour, time.Minute, time.Second);
 
-  while (Serial.available() > 0 && newData == false) {
+      // Suddivide la stringa timestampString in data e orario
+      char* dateToken = strtok(timestampString, " ");
+      char* timeToken = strtok(NULL, " ");
 
-    Serial.println(F("Receiving from serial"));
+      // Suddivide la stringa timeToken in ore, minuti e secondi
+      char* hourToken = strtok(timeToken, ":");
+      char* minuteToken = strtok(NULL, ":");
+      char* secondToken = strtok(NULL, ":");
 
-    rc = Serial.read();
+      // Array contenente i nomi dei mesi
+      const char* monthNames[] = { "Gen", "Feb", "Mar", "Apr", "Mag", "Giu", "Lug", "Ago", "Set", "Ott", "Nov", "Dic" };
 
-    if (recvInProgress == true) {
-      if (rc != endMarker) {
-        receivedChars[ndx] = rc;
+      // Converte il dateToken in un numero di giorno della settimana (0 = Domenica, 1 = Lunedì, ecc.)
+      int year, month, day;
+      sscanf(dateToken, "%04d-%02d-%02d", &year, &month, &day);
+      int dayOfWeek = calculateDayOfWeek(year, month, day);
 
-        ndx++;
-        if (ndx >= numChars) {
-          ndx = numChars - 1;
-        }
-      }
-      else {
-        receivedChars[ndx] = '\0'; // terminate the string
-        recvInProgress = false;
-        ndx = 0;
-        newData = true;
-      }
+      // Tronca il nome del mese ai primi tre caratteri
+      char simplifiedMonth[4];
+      strncpy(simplifiedMonth, monthNames[month - 1], 3);
+      simplifiedMonth[3] = '\0';
+
+      // Mappa il numero del giorno della settimana al nome del giorno
+      const char* dayNames[] = { "Domenica", "Lunedì", "Martedì", "Mercoledì", "Giovedì", "Venerdì", "Sabato" };
+      const char* dayOfWeekName = dayNames[dayOfWeek];
+
+      // Tronca il giorno della settimana ai primi tre caratteri
+      char simplifiedDayOfWeek[4];
+      strncpy(simplifiedDayOfWeek, dayOfWeekName, 3);
+      simplifiedDayOfWeek[3] = '\0';
+
+      // Crea una nuova variabile simplifiedTime con ore e minuti
+      char simplifiedTime[10];
+      sprintf(simplifiedTime, "%s:%s", hourToken, minuteToken);
+
+      Serial.print("date: ");
+      Serial.println(dateToken);
+      Serial.print("month: ");
+      Serial.println(simplifiedMonth);
+      Serial.print("day of week: ");
+      Serial.println(simplifiedDayOfWeek);
+      Serial.print("simplifiedTime: ");
+      Serial.println(simplifiedTime);
+      Serial.print("humidity: ");
+      Serial.println(humidity);
+      Serial.print("temperature: ");
+      Serial.println(temperature);
+      Serial.print("pressure: ");
+      Serial.println(pressure);
+
+      drawBanner(&orario, simplifiedTime, 40, 50, TFT_ORANGE);
+
+      delay(2000);
+    } else {
+      // Aggiungi il carattere al buffer
+      buffer[bufferIndex] = c;
+      bufferIndex = (bufferIndex + 1) % bufferSize;
     }
-
-    else if (rc == startMarker) {
-      recvInProgress = true;
-    }
   }
 }
+// =========================================================================
+// Create sprite, plot graphics in it, plot to screen, then delete sprite
+// =========================================================================
+void drawBanner(TFT_eSprite* sprite, String text, int x, int y, int color) {
 
-//============
+  // Create an 1 bit (2 colour) sprite 70x80 pixels (uses 70*80/8 = 700 bytes of RAM)
+  // Colour depths of 8 bits per pixel and 16 bits are also supported.
+  sprite->setColorDepth(BITS_PER_PIXEL);  // Set colour depth first
+  sprite->createSprite(90, 40);           // then create the sprite
+  sprite->fillSprite(TFT_NAVY);
+  sprite->fillSprite(TFT_TRANSPARENT);
+  sprite->setTextColor(TFT_ORANGE);
+  sprite->setTextDatum(TL_DATUM);
+  // Only 1 font used in the sprite, so can remain loaded
+  sprite->loadFont(NotoSansBold36);
 
-void parseData() {      // split the data into its parts
-
-  char * strtokIndx; // this is used by strtok() as an index
-
-  strtokIndx = strtok(tempChars, ",");     // get the first part - the string
-  strcpy(messageFromPC, strtokIndx); // copy it to messageFromPC
-
-  strtokIndx = strtok(NULL, ","); // this continues where the previous call left off
-  allarme = atoi(strtokIndx);
-
-  strtokIndx = strtok(NULL, ","); // this continues where the previous call left off
-  time_stamp = atol(strtokIndx);
-  time_t localTime;
-  localTime = myTZ.toLocal((time_t) time_stamp);
-  sprintf(formatted_date, "%02d.%02d.%02d", day(localTime), month(localTime), year(localTime));
-  sprintf(formatted_time, "%02d:%02d", hour(localTime), minute(localTime), second(localTime));
-
-  Serial.println(F("formatted_date"));
-  Serial.println(formatted_date);
-
-  Serial.println(F("formatted_time"));
-  Serial.println(formatted_time);
-
-  strtokIndx = strtok(NULL, ","); // this continues where the previous call left off
-  humidity = atof(strtokIndx);
-
-  Serial.println(F("humidity"));
-  Serial.println(humidity);
-
-  strtokIndx = strtok(NULL, ",");
-  temperature = atof(strtokIndx);
-
-  Serial.println(F("temperature"));
-  Serial.println(temperature);
-
-  strtokIndx = strtok(NULL, ",");
-  pressure = atof(strtokIndx);
-
-  Serial.println(F("pressure"));
-  Serial.println(pressure);
+  sprite->drawString(text, 0, 0, 4);
+  // Push sprite to TFT screen CGRAM at coordinate x,y (top left corner)
+  // Specify what colour is to be treated as transparent (black in this example)
+  sprite->pushSprite(x, y, TFT_TRANSPARENT);
+  sprite->deleteSprite();
 }
+// =========================================================================
 
-unsigned long printDisplay() {
-  unsigned long start = micros();
 
-  //tft.fillScreen(GC9A01A_BLACK);
-
-  if (allarme == 1)
-  {
-    // tft.setTextSize(1);
-    //tft.setFont(&FreeSans12pt7b);
-    //tft.fillScreen(PURPLE);
-    tft.setCursor(65, 190);
-    tft.setTextColor(SEASHELL);
-    tft.print("ALLARME");
-    tft.setCursor(95, 220);
-    tft.setTextColor(SEASHELL);
-    tft.print("GAS");
-  }
-  else
-  {
-
+// Funzione per calcolare il giorno della settimana
+int calculateDayOfWeek(int year, int month, int day) {
+  if (month < 3) {
+    month += 12;
+    year--;
   }
 
-  if (true)
-  {
-    //tft.setFont(&FreeSans12pt7b);
-    tft.setCursor(60, 30);
-    tft.setTextColor(LILLA);
-    tft.println(formatted_date);
+  int century = year / 100;
+  year %= 100;
 
-    Serial.println(F("Clear canvas (not display) prima"));
+  int dayOfWeek = (day + ((13 * (month + 1)) / 5) + year + (year / 4) + (century / 4) - (2 * century)) % 7;
 
-    canvas_time.fillScreen(GC9A01A_BLACK);    // Clear canvas (not display)
-
-    Serial.println(F("Clear canvas (not display) dopo"));
-
-    canvas_time.setCursor(0, 0);
-    //canvas_time.setTextSize(5);
-    canvas_time.print(formatted_time);
-
-    Serial.println(F("(canvas_time.height())"));
-    Serial.println(canvas_time.height());
-
-    //drawBitmap(short, short, unsigned char*, short, short, unsigned short, unsigned short)
-   // tft.drawBitmap(45, 60, canvas_time.getBuffer(), canvas_time.width(), canvas_time.height(), LILLA, GC9A01A_BLACK);
-
-    Serial.println(F("(tft.drawBitmap) dopo"));
+  if (dayOfWeek < 0) {
+    dayOfWeek += 7;
   }
 
-  //tft.setTextSize(1);
-  //tft.setFont(&FreeSans12pt7b);
-  tft.setCursor(80, 120);
-  tft.setTextColor(LILLA);
-  tft.print(temperature); tft.print(" °C");
-
-  tft.setCursor(80, 140);
-  tft.setTextColor(LILLA);
-  tft.print(humidity); tft.print(" %");
-
-  tft.setCursor(60, 160);
-  tft.setTextColor(LILLA);
-  tft.print(pressure); tft.print(" hPa");
-
-  return micros() - start;
-}
-
-//============
-
-void showParsedData() {
-  Serial.print("Message ");
-  Serial.println(messageFromPC);
-  Serial.print("Alarm status ");
-  Serial.println(allarme);
-  Serial.print("Formatted date ");
-  Serial.println(formatted_date);
-  Serial.print("humidity ");
-  Serial.println(humidity);
-  Serial.print("temperature ");
-  Serial.println(temperature);
-  Serial.print("pressure ");
-  Serial.println(pressure);
+  return dayOfWeek;
 }
