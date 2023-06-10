@@ -67,23 +67,33 @@ void parseString(const char* input) {
 void setup(void) {
   Serial.begin(9600);
 
+  Serial.println();
   Serial.println("Created by Bigmoby");
   Serial.println("Enter data in this format <TX_MSG,0,1671289668,66.9,15.4,991.45>");
   Serial.println();
 
   tft.init();
-  tft.setRotation(1);
+  tft.setRotation(2);
   tft.fillScreen(TFT_NAVY);
+
+  // Create the clock sprite
+  orario.setColorDepth(BITS_PER_PIXEL);  // Set colour depth first
+  orario.createSprite(90, 40);           // then create the sprite
+
+  // Only 1 font used in the sprite, so can remain loaded
+  orario.loadFont(NotoSansBold36);
 }
 // =========================================================================
 void loop() {
 
   if (Serial.available()) {
     // Leggi la stringa dalla seriale
+    Serial.println("Reading from serial");
     char c = Serial.read();
 
     // Se il carattere è '>', effettua il parsing della stringa
     if (c == '>') {
+      Serial.println("Read from serial");
       buffer[bufferIndex] = '\0';  // Termina il buffer con il carattere nullo
       parseString(buffer);
 
@@ -168,10 +178,9 @@ void drawBanner(TFT_eSprite* sprite, String text, int x, int y, int color) {
 
   // Create an 1 bit (2 colour) sprite 70x80 pixels (uses 70*80/8 = 700 bytes of RAM)
   // Colour depths of 8 bits per pixel and 16 bits are also supported.
-  sprite->setColorDepth(BITS_PER_PIXEL);  // Set colour depth first
-  sprite->createSprite(90, 40);           // then create the sprite
+
   sprite->fillSprite(TFT_NAVY);
-  sprite->fillSprite(TFT_TRANSPARENT);
+  //sprite->fillSprite(TFT_TRANSPARENT);
   sprite->setTextColor(TFT_ORANGE);
   sprite->setTextDatum(TL_DATUM);
   // Only 1 font used in the sprite, so can remain loaded
@@ -181,7 +190,7 @@ void drawBanner(TFT_eSprite* sprite, String text, int x, int y, int color) {
   // Push sprite to TFT screen CGRAM at coordinate x,y (top left corner)
   // Specify what colour is to be treated as transparent (black in this example)
   sprite->pushSprite(x, y, TFT_TRANSPARENT);
-  sprite->deleteSprite();
+  //  sprite->deleteSprite();
 }
 // =========================================================================
 
