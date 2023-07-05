@@ -58,3 +58,4 @@ dkms.conf
 .vscode/c_cpp_properties.json
 /secrets.yaml
 /secrets_copy.yaml
+/settings.h

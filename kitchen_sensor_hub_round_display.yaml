@@ -30,6 +30,13 @@ mqtt:
   username: !secret mqtt_user
   password: !secret mqtt_password
   client_id: ${device_name}
+  id: mqtt_client
+  birth_message:
+    topic: "${device_name}/status"
+    payload: "online"
+  will_message:
+    topic: "${device_name}/status"
+    payload: "offline"
 
 i2c:
   - id: bus_a
@@ -43,21 +50,45 @@ api:
 
 ota:
   safe_mode: false
-  password: !secret ota_password    
-
-time:
-  - platform: homeassistant
-    id: esptime
-
-  - platform: sntp
-    id: sntp_time
-    timezone: Europe/Rome
+  password: !secret ota_password
 
 esp32_ble_tracker:
   scan_parameters:
     active: false
 
+binary_sensor:
+  - platform: gpio
+    pin: 
+      number: 33
+      mode: INPUT_PULLUP
+    name: ${device_name} Sensore movimento
+    id: sensore_movimento
+    device_class: motion 
+    icon: "mdi:motion-sensor"   
+
 sensor: 
+  - platform: adc
+    pin: GPIO34
+    name: "Sensore Gas"
+    id: gas_sensor
+    update_interval: 10s
+    filters:
+      - calibrate_linear:
+          - 0.1 -> 0.0
+          - 1.0 -> 1.0
+
+  - platform: template
+    name: "Gas PPM"
+    id: gas_ppm_sensor
+    update_interval: 10s
+    accuracy_decimals: 2
+    lambda: |-
+      float resistance = 10.0 * (4096.0 / id(gas_sensor).state - 1.0);
+      ESP_LOGD("gas_ppm_sensor", "The value of resistance is %.1f", resistance);
+      float ppm = pow(10, (log10(resistance) - log10(1036.0)) / -0.616);
+      ESP_LOGD("gas_ppm_sensor", "The value of ppm is %.1f", ppm);
+      return ppm;
+
   - platform: bme280
     i2c_id: bus_a
     address: 0x76
@@ -74,7 +105,7 @@ sensor:
       id: bme280_humidity
       filters:
         - lambda: return x + 7;
-    update_interval: 30s  
+    update_interval: 10s  
 
   - platform: template
     name: ${friendly_name} Umidità assoluta
@@ -85,7 +116,7 @@ sensor:
         (id(bme280_temperature).state + 243.5)) * id(bme280_humidity).state * mw) /
         ((273.15 + id(bme280_temperature).state) * r); // in grams/m^3
     accuracy_decimals: 2
-    update_interval: 30s
+    update_interval: 10s
     icon: "mdi:water"
     unit_of_measurement: "g/m³"
 
@@ -96,6 +127,7 @@ sensor:
       (243.5+id(bme280_temperature).state)))/(17.67-log(id(bme280_humidity).state/100)-
       ((17.67*id(bme280_temperature).state)/(243.5+id(bme280_temperature).state))));
     unit_of_measurement: °C
+    update_interval: 10s
     icon: "mdi:thermometer-alert"
 
   - platform: xiaomi_hhccjcy01
@@ -124,15 +156,13 @@ uart:
     sequence:
       - lambda: UARTDebug::log_string(direction, bytes);
 
-# "<TX_MSG,1671289668,66.9,15.4,991.45>"
+# "<NO MSG,0,59.0,26.3,987.97>"
 interval:
   - interval: 5s
     then:
     - uart.write: !lambda  
                         char buf[42];
-                        char str[17];
-                        long currTime = id(sntp_time).now().timestamp;
-                        sprintf(buf, "<TX_MSG,0,%lu,%.1f,%.1f,%.2f>\r\n", currTime, id(bme280_humidity).state, id(bme280_temperature).state, id(bme280_pressure).state);
+                        sprintf(buf, "<ALARM MSG,0,%.1f,%.1f,%.2f>\r\n", id(bme280_humidity).state, id(bme280_temperature).state, id(bme280_pressure).state);
                         std::string s = buf;
                         return std::vector<unsigned char>( s.begin(), s.end() );
 
