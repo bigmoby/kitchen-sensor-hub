@@ -59,3 +59,4 @@ dkms.conf
 /secrets.yaml
 /secrets_copy.yaml
 /settings.h
+/read_serial/build
