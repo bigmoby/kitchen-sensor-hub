@@ -1,5 +1,5 @@
 # kitchen-sensor-hub
-A simple ESP32 (Esphome) and ESP8266 project hub for Miflora messages reply, 1.28 TFT SPI 240*240 display, BME280 sensor, MQ2 sensor and RCWL-0516 microwave motion sensor.
+A simple ESP32 (Esphome) and ESP8266 (Arduino) project hub for Miflora messages reply, 1.28 TFT SPI 240*240 display, BME280 sensor, MQ2 sensor and RCWL-0516 microwave motion sensor.
 
 For the 3D project please have a look at `3D` directory.
 
