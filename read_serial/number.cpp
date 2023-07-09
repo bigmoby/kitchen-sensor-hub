@@ -41,7 +41,7 @@ void Number::printfW3660(int numx,int numy,int numn)
       TJpgDec.drawJpg(numx,numy,W_3660_i9, sizeof(W_3660_i9));
       break;
     default:
-      Serial.println("显示W_3660数字错误");
+      Serial.println("Show W_3660 number error");
       break;
   }
 }
@@ -81,7 +81,7 @@ void Number::printfO3660(int numx,int numy,int numn)
       TJpgDec.drawJpg(numx,numy,O_3660_i9, sizeof(O_3660_i9));
       break;
     default:
-      Serial.println("显示O_3660数字错误");
+      Serial.println("Shows O_3660 number error");
       break;
   }
 }
@@ -121,7 +121,7 @@ void Number::printfW1830(int numx,int numy,int numn)
       TJpgDec.drawJpg(numx,numy,W_1830_i9, sizeof(W_1830_i9));
       break;
     default:
-      Serial.println("显示O_1830数字错误");
+      Serial.println("Displays O_1830 numeric error");
       break;
   }
 }

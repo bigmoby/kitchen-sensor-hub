@@ -64,30 +64,19 @@ binary_sensor:
     name: ${device_name} Sensore movimento
     id: sensore_movimento
     device_class: motion 
-    icon: "mdi:motion-sensor"   
+    icon: "mdi:motion-sensor"  
 
 sensor: 
   - platform: adc
-    pin: GPIO34
+    pin: 32
     name: "Sensore Gas"
     id: gas_sensor
-    update_interval: 10s
+    update_interval: 2s
     filters:
-      - calibrate_linear:
-          - 0.1 -> 0.0
-          - 1.0 -> 1.0
-
-  - platform: template
-    name: "Gas PPM"
-    id: gas_ppm_sensor
-    update_interval: 10s
-    accuracy_decimals: 2
-    lambda: |-
-      float resistance = 10.0 * (4096.0 / id(gas_sensor).state - 1.0);
-      ESP_LOGD("gas_ppm_sensor", "The value of resistance is %.1f", resistance);
-      float ppm = pow(10, (log10(resistance) - log10(1036.0)) / -0.616);
-      ESP_LOGD("gas_ppm_sensor", "The value of ppm is %.1f", ppm);
-      return ppm;
+      - multiply: 100
+    unit_of_measurement: "%"
+    device_class: gas 
+    icon: "mdi:percent"
 
   - platform: bme280
     i2c_id: bus_a
@@ -95,17 +84,35 @@ sensor:
     temperature:
       name: ${friendly_name} Temperatura
       id: bme280_temperature
+      unit_of_measurement: °C
+      accuracy_decimals: 1
       filters:
-        - lambda: return x;
+        - lambda: return x - 4.5;
     pressure:
       name: ${friendly_name} Pressione atmosferica
+      unit_of_measurement: 'hPa'
+      accuracy_decimals: 2
       id: bme280_pressure
+      filters:
+        - lambda: return x - 2;
     humidity:
       name: ${friendly_name} Umidità relativa
       id: bme280_humidity
+      unit_of_measurement: '%'
+      accuracy_decimals: 1
       filters:
-        - lambda: return x + 7;
-    update_interval: 10s  
+        - lambda: return x + 16;
+    update_interval: 30s  
+
+  - platform: template
+    name: ${friendly_name} Altitudine
+    lambda: |-
+      const float STANDARD_SEA_LEVEL_PRESSURE = 1013.25; //in hPa, see note
+      return ((id(bme280_temperature).state + 273.15) / 0.0065) *
+        (powf((STANDARD_SEA_LEVEL_PRESSURE / id(bme280_pressure).state), 0.190234) - 1); // in meter
+    update_interval: 15s
+    icon: 'mdi:signal'
+    unit_of_measurement: 'm'
 
   - platform: template
     name: ${friendly_name} Umidità assoluta
@@ -162,7 +169,12 @@ interval:
     then:
     - uart.write: !lambda  
                         char buf[42];
-                        sprintf(buf, "<ALARM MSG,0,%.1f,%.1f,%.2f>\r\n", id(bme280_humidity).state, id(bme280_temperature).state, id(bme280_pressure).state);
+                        float gas_percent = id(gas_sensor).state;
+                        if(gas_percent > 30) {
+                          sprintf(buf, "<ALLARME GAS,1,%.1f,%.1f,%.2f>\r\n", id(bme280_humidity).state, id(bme280_temperature).state, id(bme280_pressure).state);
+                        } else {
+                          sprintf(buf, "<NO MSG,0,%.1f,%.1f,%.2f>\r\n", id(bme280_humidity).state, id(bme280_temperature).state, id(bme280_pressure).state);
+                        }
                         std::string s = buf;
                         return std::vector<unsigned char>( s.begin(), s.end() );
 

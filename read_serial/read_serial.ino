@@ -47,9 +47,9 @@ Timezone CE(CEST, CET);
 
 // ==========================
 /**
- * Input time in epoch format and return tm time format
- * by Renzo Mischianti <www.mischianti.org> 
- */
+   Input time in epoch format and return tm time format
+   by Renzo Mischianti <www.mischianti.org>
+*/
 static tm getDateTimeByParams(long time) {
   struct tm* newtime;
   const time_t tim = time;
@@ -58,9 +58,9 @@ static tm getDateTimeByParams(long time) {
 }
 
 /**
- * Input tm time format and return String with format pattern
- * by Renzo Mischianti <www.mischianti.org>
- */
+   Input tm time format and return String with format pattern
+   by Renzo Mischianti <www.mischianti.org>
+*/
 static String getDateTimeStringByParams(tm* newtime, char* pattern = (char*)"%d/%m/%Y %H:%M:%S") {
   char buffer[30];
   strftime(buffer, 30, pattern, newtime);
@@ -68,34 +68,29 @@ static String getDateTimeStringByParams(tm* newtime, char* pattern = (char*)"%d/
 }
 
 /**
- * Input time in epoch format format and return String with format pattern
- * by Renzo Mischianti <www.mischianti.org> 
- */
+   Input time in epoch format format and return String with format pattern
+   by Renzo Mischianti <www.mischianti.org>
+*/
 static String getEpochStringByParams(long time, char* pattern = (char*)"%d/%m/%Y %H:%M:%S") {
-  //    struct tm *newtime;
-  tm newtime;
-  newtime = getDateTimeByParams(time);
+  tm newtime = getDateTimeByParams(time);
   return getDateTimeStringByParams(&newtime, pattern);
 }
 
+#define SPRITE_HEIGHT 22
+#define SPRITE_WIDTH 140
+
 Number dig;
 
-TFT_eSPI tft = TFT_eSPI();               // Create object "tft"
-TFT_eSprite orario = TFT_eSprite(&tft);  // Create Sprite object "img" with pointer to "tft" object
-                                         // the pointer is used by pushSprite() to push it onto the TFT
+TFT_eSPI tft = TFT_eSPI();
+
 TFT_eSprite data = TFT_eSprite(&tft);
+TFT_eSprite sprite_tool = TFT_eSprite(&tft);
 
-TFT_eSprite umidita_sprite = TFT_eSprite(&tft);
-TFT_eSprite temperatura_sprite = TFT_eSprite(&tft);
-TFT_eSprite pressione_sprite = TFT_eSprite(&tft);
-
-TFT_eSprite message_banner = TFT_eSprite(&tft);
+int tcount = 0;
 
 #define BITS_PER_PIXEL 8  // How many bits per pixel in Sprite
 #define TFT_BETTER_ORANGE 0xFB80
 #define TFT_DARK_YELLOW 0xFC00
-#define IWIDTH 240
-#define IHEIGHT 30
 
 String inputString;              // Variabile per memorizzare la stringa letta
 boolean stringComplete = false;  // Flag per indicare se la stringa è stata completata
@@ -110,6 +105,11 @@ int hours = 0;
 int minutes = 0;
 int seconds = 0;
 
+String data_odierna = "";
+String prev_humidity;     // Per garantire l'aggiornamento solo se muta l'umidità
+String prev_temperature;  // Per garantire l'aggiornamento solo se muta la temperatura
+String prev_pressure;     // Per garantire l'aggiornamento solo se muta la pressione
+
 static int backgroundColor = TFT_BLACK;
 
 bool tft_output(int16_t x, int16_t y, uint16_t w, uint16_t h, uint16_t* bitmap) {
@@ -122,6 +122,7 @@ bool tft_output(int16_t x, int16_t y, uint16_t w, uint16_t h, uint16_t* bitmap) 
 void digitalClockDisplay();
 
 byte loadNum = 6;
+
 void loading(TFT_eSprite* sprite, String up_message, String bottom_message, int x, int y, byte delayTime) {
   sprite->setColorDepth(8);
 
@@ -146,30 +147,6 @@ void loading(TFT_eSprite* sprite, String up_message, String bottom_message, int 
 
 void createPlainBoard() {
   tft.fillScreen(backgroundColor);
-
-  // Create the date sprite
-  data.setColorDepth(BITS_PER_PIXEL);  // Set colour depth first
-  data.createSprite(145, 20);          // then create the sprite
-
-  // Create the clock sprite
-  orario.setColorDepth(BITS_PER_PIXEL);  // Set colour depth first
-  orario.createSprite(122, 40);          // then create the sprite
-
-  // Create the message_banner sprite
-  message_banner.setColorDepth(BITS_PER_PIXEL);  // Set colour depth first
-  message_banner.createSprite(IWIDTH, IHEIGHT);  // then create the sprite
-
-  // Create the umidità sprite
-  umidita_sprite.setColorDepth(BITS_PER_PIXEL);  // Set colour depth first
-  umidita_sprite.createSprite(60, 20);           // then create the sprite
-
-  // Create the temperatura sprite
-  temperatura_sprite.setColorDepth(BITS_PER_PIXEL);  // Set colour depth first
-  temperatura_sprite.createSprite(80, 20);           // then create the sprite
-
-  // Create the pressione sprite
-  pressione_sprite.setColorDepth(BITS_PER_PIXEL);  // Set colour depth first
-  pressione_sprite.createSprite(120, 30);          // then create the sprite
 
   TJpgDec.setJpgScale(1);
   TJpgDec.setSwapBytes(true);
@@ -199,11 +176,11 @@ void setup(void) {
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
   while (WiFi.status() != WL_CONNECTED) {
     Serial.print(".");
-    loading(&message_banner, "Connecting to WiFi......", "", 50, 130, 70);
+    loading(&sprite_tool, "Connecting to WiFi......", "", 50, 130, 70);
   }
 
   delay(20);
-  loading(&message_banner, "Successfully connected!", "", 50, 130, 1);
+  loading(&sprite_tool, "Successfully connected!", "", 50, 130, 1);
 
   Serial.println("Successfully connected!");
   Serial.println(WiFi.SSID());
@@ -232,9 +209,9 @@ void setup(void) {
   char host_url[60];
   sprintf(host_url, "http://%s.local/update", OTA_HOST);
   Serial.println("OTA service available: " + String(host_url));
-  loading(&message_banner, "OTA service available:", String(host_url), 50, 130, 1);
+  loading(&sprite_tool, "OTA service available:", String(host_url), 50, 130, 1);
 
-  delay(10000);
+  delay(3000);
 
   // ===================================================
 
@@ -269,21 +246,32 @@ void loop() {
       Serial.print("alarm ON with message : ");
       Serial.println(message);
       // Stampa i valori ottenuti dal parsing
-      drawBanner(&message_banner, message, 50, 130, TFT_RED);
+      drawBanner(&sprite_tool, message, 56, 120, TFT_RED);
     } else if (alarm == 0) {
-      cleanBanner(&message_banner, 50, 130, backgroundColor);
+      cleanBanner(&sprite_tool, 56, 120, backgroundColor);
     }
 
     // Ora puoi utilizzare le variabili message, alarm, humidity, temperature, pressure come necessario
     Serial.println("Messaggio: " + message);
     Serial.println("Allarme: " + String(alarm));
-    Serial.println("Umidità: " + humidity);
-    Serial.println("Temperatura: " + temperature);
-    Serial.println("Pressione: " + pressure);
 
-    drawBanner(&umidita_sprite, humidity + String("%"), 35, 158, TFT_LIGHTGREY);
-    drawBanner(&temperatura_sprite, temperature + "℃", 59, 180, TFT_LIGHTGREY);
-    drawBanner(&pressione_sprite, pressure + String(" hPa"), 65, 202, TFT_LIGHTGREY);
+    if (prev_humidity != humidity) {
+      prev_humidity = humidity;
+      Serial.println("Umidità: " + humidity);
+      drawBanner(&sprite_tool, humidity + String("%"), 35, 158, TFT_LIGHTGREY);
+    }
+
+    if (prev_temperature != temperature) {
+      prev_temperature = temperature;
+      Serial.println("Temperatura: " + temperature);
+      drawBanner(&sprite_tool, temperature + "℃", 59, 180, TFT_LIGHTGREY);
+    }
+
+    if (prev_pressure != pressure) {
+      prev_pressure = pressure;
+      Serial.println("Pressione: " + pressure);
+      drawBanner(&sprite_tool, pressure + String(" hPa"), 65, 202, TFT_LIGHTGREY);
+    }
 
     // Resetta la stringa per leggere una nuova stringa
     inputString = "";
@@ -340,17 +328,25 @@ void printClock() {
   simplifiedDayOfWeek[3] = '\0';
 
   // Crea una nuova variabile simplifiedTime con ore e minuti
-  char simplifiedTime[10];
-  sprintf(simplifiedTime, "%s:%s", hourToken, minuteToken);
+  /*
+    char simplifiedTime[10];
+    sprintf(simplifiedTime, "%s:%s", hourToken, minuteToken);
 
-  Serial.print("date: ");
-  Serial.println(dateToken);
-  Serial.print("day of week: ");
-  Serial.println(simplifiedDayOfWeek);
-  Serial.print("simplifiedTime: ");
-  Serial.println(simplifiedTime);
+    Serial.print("date: ");
+    Serial.println(dateToken);
+    Serial.print("day of week: ");
+    Serial.println(simplifiedDayOfWeek);
+    Serial.print("simplifiedTime: ");
+    Serial.println(simplifiedTime);
+  */
 
-  drawBanner(&data, simplifiedDayOfWeek + String(" ") + String(day) + String(" ") + simplifiedMonth, 70, 15, TFT_LIGHTGREY);
+  String tmp_data_odierna = simplifiedDayOfWeek + String(" ") + String(day) + String(" ") + simplifiedMonth;
+  if (data_odierna != tmp_data_odierna) {
+    data_odierna = tmp_data_odierna;
+    Serial.print("data_odierna: ");
+    Serial.println(data_odierna);
+    drawBanner(&data, data_odierna, 70, 22, TFT_LIGHTGREY);
+  }
 
   digitalClockDisplay();
 }
@@ -360,7 +356,10 @@ void printClock() {
 // =========================================================================
 void drawBanner(TFT_eSprite* sprite, String text, int x, int y, int color) {
   if (text) {
-    sprite->setColorDepth(8);
+    cleanBanner(sprite, x, y, backgroundColor);
+
+    sprite->setColorDepth(BITS_PER_PIXEL);
+    sprite->createSprite(SPRITE_WIDTH, SPRITE_HEIGHT);
     sprite->loadFont(ZdyLwFont_20);
     sprite->fillSprite(backgroundColor);
     sprite->setTextWrap(false);
@@ -377,25 +376,20 @@ void drawBanner(TFT_eSprite* sprite, String text, int x, int y, int color) {
 }
 
 void cleanBanner(TFT_eSprite* sprite, int x, int y, int backgroundColor) {
-  TFT_eSprite clear_message_banner = TFT_eSprite(&tft);
-  clear_message_banner.setColorDepth(BITS_PER_PIXEL);                   // Set colour depth first
-  clear_message_banner.createSprite(sprite->width(), sprite->width());  // then create the sprite
-
-  clear_message_banner.setColorDepth(8);
-  clear_message_banner.fillRect(x, y, sprite->height(), sprite->width(), backgroundColor);
-
-  // Push sprite to TFT screen CGRAM at coordinate x,y (top left corner)
-  clear_message_banner.pushSprite(x, y, TFT_TRANSPARENT);
-  clear_message_banner.deleteSprite();
+  // Clear the screen areas
+  sprite->setColorDepth(BITS_PER_PIXEL);
+  sprite->createSprite(SPRITE_WIDTH, SPRITE_HEIGHT);
+  sprite->pushSprite(x, y, TFT_TRANSPARENT);
+  sprite->deleteSprite();
 }
 // =========================================================================
 
 // Funzione per il parsing della stringa <NO MSG,0,59.0,26.3,987.97>
 void parseString() {
   Serial.print("Trying to parse: ");
-  Serial.println(inputString);
   inputString.trim();
   inputString.replace("\n", "");
+  Serial.println(inputString);
 
   int commaIndices[4];   // Array per memorizzare gli indici delle virgole
   int currentIndex = 0;  // Indice corrente nell'array
