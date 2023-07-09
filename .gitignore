@@ -54,8 +54,8 @@ dkms.conf
 # Gitignore settings for ESPHome
 # This is an example and may include too much for your use-case.
 # You can modify this file to suit your needs.
-/.esphome/
-.vscode/c_cpp_properties.json
+.esphome/
+.vscode/
 /secrets.yaml
 /secrets_copy.yaml
 /settings.h
